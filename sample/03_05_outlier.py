@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-@author: Hiromasa Kaneko
-"""
+"""@author: Hiromasa Kaneko."""
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -33,51 +30,63 @@ elif type_of_samples == 1:
 x[outlier_indexes] = outliers  # 外れ値の追加
 
 # 生成した仮想サンプルのプロット
-plt.rcParams['font.size'] = 18  # 横軸や縦軸の名前の文字などのフォントのサイズ
-plt.plot(x, 'b.')  # プロット
-plt.plot(outlier_indexes, x[outlier_indexes], 'r.', label='original outliers')  # プロット
-plt.xlabel('sample number')  # x 軸の名前
-plt.ylabel('x or y')  # y 軸の名前
+plt.rcParams["font.size"] = 18  # 横軸や縦軸の名前の文字などのフォントのサイズ
+plt.plot(x, "b.")  # プロット
+plt.plot(
+    outlier_indexes, x[outlier_indexes], "r.", label="original outliers"
+)  # プロット
+plt.xlabel("sample number")  # x 軸の名前
+plt.ylabel("x or y")  # y 軸の名前
 plt.legend()
 plt.show()  # 以上の設定で描画
 
 # 3 sigma method
 upper_3_sigma = x.mean() + 3 * x.std()
 lower_3_sigma = x.mean() - 3 * x.std()
-plt.plot(x, 'b.') 
-plt.plot(outlier_indexes, x[outlier_indexes], 'r.', label='original outliers')
-plt.plot([0, len(x)], [upper_3_sigma, upper_3_sigma], 'k-')
-plt.plot([0, len(x)], [lower_3_sigma, lower_3_sigma], 'k-')
-plt.xlabel('sample number')  # x 軸の名前
-plt.ylabel('x or y')  # y 軸の名前
-plt.title('3 sigma method')
+plt.plot(x, "b.")
+plt.plot(outlier_indexes, x[outlier_indexes], "r.", label="original outliers")
+plt.plot([0, len(x)], [upper_3_sigma, upper_3_sigma], "k-")
+plt.plot([0, len(x)], [lower_3_sigma, lower_3_sigma], "k-")
+plt.xlabel("sample number")  # x 軸の名前
+plt.ylabel("x or y")  # y 軸の名前
+plt.title("3 sigma method")
 plt.legend()
 plt.show()  # 以上の設定で描画
 
 # Hampel identifier
 upper_hampel = np.median(x) + 3 * 1.4826 * np.median(np.absolute(x - np.median(x)))
 lower_hampel = np.median(x) - 3 * 1.4826 * np.median(np.absolute(x - np.median(x)))
-plt.plot(x, 'b.') 
-plt.plot(outlier_indexes, x[outlier_indexes], 'r.', label='original outliers')
-plt.plot([0, len(x)], [upper_hampel, upper_hampel], 'k-')
-plt.plot([0, len(x)], [lower_hampel, lower_hampel], 'k-')
-plt.xlabel('sample number')  # x 軸の名前
-plt.ylabel('x or y')  # y 軸の名前
-plt.title('Hampel identifier')
+plt.plot(x, "b.")
+plt.plot(outlier_indexes, x[outlier_indexes], "r.", label="original outliers")
+plt.plot([0, len(x)], [upper_hampel, upper_hampel], "k-")
+plt.plot([0, len(x)], [lower_hampel, lower_hampel], "k-")
+plt.xlabel("sample number")  # x 軸の名前
+plt.ylabel("x or y")  # y 軸の名前
+plt.title("Hampel identifier")
 plt.legend()
 plt.show()  # 以上の設定で描画
 
 # SG method + Hampel identifier
-preprocessed_x = savgol_filter(x, window_length=window_length, polyorder=polyorder, deriv=deriv)  # SG 法
+preprocessed_x = savgol_filter(
+    x, window_length=window_length, polyorder=polyorder, deriv=deriv
+)  # SG 法
 x_diff = x - preprocessed_x
-upper_sg_hampel = preprocessed_x + np.median(x_diff) + 3 * 1.4826 * np.median(np.absolute(x_diff - np.median(x_diff)))
-lower_sg_hampel = preprocessed_x + np.median(x_diff) - 3 * 1.4826 * np.median(np.absolute(x_diff - np.median(x_diff)))
-plt.plot(x, 'b.') 
-plt.plot(outlier_indexes, x[outlier_indexes], 'r.', label='original outliers')
-plt.plot(range(len(x)), upper_sg_hampel, 'k-')
-plt.plot(range(len(x)), lower_sg_hampel, 'k-')
-plt.xlabel('sample number')  # x 軸の名前
-plt.ylabel('x or y')  # y 軸の名前
-plt.title('SG method + Hampel identifier')
+upper_sg_hampel = (
+    preprocessed_x
+    + np.median(x_diff)
+    + 3 * 1.4826 * np.median(np.absolute(x_diff - np.median(x_diff)))
+)
+lower_sg_hampel = (
+    preprocessed_x
+    + np.median(x_diff)
+    - 3 * 1.4826 * np.median(np.absolute(x_diff - np.median(x_diff)))
+)
+plt.plot(x, "b.")
+plt.plot(outlier_indexes, x[outlier_indexes], "r.", label="original outliers")
+plt.plot(range(len(x)), upper_sg_hampel, "k-")
+plt.plot(range(len(x)), lower_sg_hampel, "k-")
+plt.xlabel("sample number")  # x 軸の名前
+plt.ylabel("x or y")  # y 軸の名前
+plt.title("SG method + Hampel identifier")
 plt.legend()
 plt.show()  # 以上の設定で描画
