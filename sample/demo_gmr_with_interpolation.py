@@ -11,16 +11,16 @@ max_number_of_components = 20
 covariance_types = ["full", "diag", "tied", "spherical"]
 
 # load dataset
-arranged_x = pd.read_csv("iris_with_nan.csv", index_col=0)
+arranged_x = pd.read_csv("dataset/iris_with_nan.csv", index_col=0)
 
 # select nan sample numbers
 nan_indexes = np.where(arranged_x.isna().sum(axis=1) > 0)[0]
 nan_variables = []
 effective_variables = []
 for sample_number in nan_indexes:
-    nan_variables.append(np.where(arranged_x.iloc[sample_number, :].isna() is True)[0])
+    nan_variables.append(np.where(arranged_x.iloc[sample_number, :].isna())[0])
     effective_variables.append(
-        np.where(arranged_x.iloc[sample_number, :].isna() is False)[0]
+        np.where(~arranged_x.iloc[sample_number, :].isna())[0]
     )
 
 for iteration in range(iterations):
