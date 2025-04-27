@@ -19,9 +19,7 @@ nan_variables = []
 effective_variables = []
 for sample_number in nan_indexes:
     nan_variables.append(np.where(arranged_x.iloc[sample_number, :].isna())[0])
-    effective_variables.append(
-        np.where(~arranged_x.iloc[sample_number, :].isna())[0]
-    )
+    effective_variables.append(np.where(~arranged_x.iloc[sample_number, :].isna())[0])
 
 for iteration in range(iterations):
     print(iteration + 1, "/", iterations)
@@ -64,9 +62,6 @@ for iteration in range(iterations):
 
     # interpolation
     for index, sample_number in enumerate(nan_indexes):
-        test = autoscaled_x_arranged.iloc[
-                    sample_number : sample_number + 1, effective_variables[index]
-                ]
         if iteration == 0:
             (
                 mode_of_estimated_mean,
