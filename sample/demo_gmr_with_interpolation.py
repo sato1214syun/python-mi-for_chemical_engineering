@@ -49,6 +49,7 @@ for iteration in range(iterations):
             )
 
     # set optimal parameters
+    test = bic_values.min()
     optimal_index = np.where(bic_values == bic_values.min())
     optimal_number_of_components = optimal_index[0][0] + 1
     optimal_covariance_type = covariance_types[optimal_index[1][0]]
@@ -63,6 +64,9 @@ for iteration in range(iterations):
 
     # interpolation
     for index, sample_number in enumerate(nan_indexes):
+        test = autoscaled_x_arranged.iloc[
+                    sample_number : sample_number + 1, effective_variables[index]
+                ]
         if iteration == 0:
             (
                 mode_of_estimated_mean,
