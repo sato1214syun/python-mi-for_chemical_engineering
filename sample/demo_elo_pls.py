@@ -2,9 +2,11 @@
 
 import numpy as np
 import pandas as pd
-from dcekit.learning import ensemble_outlier_sample_detection
-from sklearn.cross_decomposition import PLSRegression
-from sklearn.model_selection import GridSearchCV, KFold
+from dcekit.learning import (  # type: ignore[import-untyped]
+    ensemble_outlier_sample_detection,
+)
+from sklearn.cross_decomposition import PLSRegression  # type: ignore[import-untyped]
+from sklearn.model_selection import GridSearchCV, KFold  # type: ignore[import-untyped]
 
 # Demonstration of Ensemble Learning Outlier sample detection (ELO)
 # https://datachemeng.com/ensembleoutliersampledetection/

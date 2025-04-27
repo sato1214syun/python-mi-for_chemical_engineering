@@ -1,4 +1,4 @@
-"""@author: Hiromasa Kaneko."""
+"""@author: Hiromasa Kaneko."""  # noqa: N999
 
 import matplotlib.pyplot as plt
 import numpy as np

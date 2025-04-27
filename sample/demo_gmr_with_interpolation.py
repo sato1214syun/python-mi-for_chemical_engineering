@@ -3,7 +3,7 @@
 
 import numpy as np
 import pandas as pd
-from dcekit.generative_model import GMR
+from dcekit.generative_model import GMR  # type: ignore[import-untyped]
 
 # settings
 iterations = 10
@@ -39,7 +39,9 @@ for iteration in range(iterations):
     for covariance_type_index, covariance_type in enumerate(covariance_types):
         for number_of_components in range(max_number_of_components):
             model = GMR(
-                n_components=number_of_components + 1, covariance_type=covariance_type
+                n_components=number_of_components + 1,
+                covariance_type=covariance_type,
+                random_state=0,
             )
             model.fit(autoscaled_x)
             bic_values[number_of_components, covariance_type_index] = model.bic(
@@ -47,7 +49,6 @@ for iteration in range(iterations):
             )
 
     # set optimal parameters
-    test = bic_values.min()
     optimal_index = np.where(bic_values == bic_values.min())
     optimal_number_of_components = optimal_index[0][0] + 1
     optimal_covariance_type = covariance_types[optimal_index[1][0]]
@@ -57,6 +58,7 @@ for iteration in range(iterations):
     model = GMR(
         n_components=optimal_number_of_components,
         covariance_type=optimal_covariance_type,
+        random_state=0,
     )
     model.fit(autoscaled_x)
 
@@ -96,4 +98,4 @@ for iteration in range(iterations):
         # print(interpolated_value)  # noqa: ERA001
 
 # save interpolated dataset
-arranged_x.to_csv("interpolated_dataset.csv")
+arranged_x.to_csv("dataset/interpolated_dataset.csv")

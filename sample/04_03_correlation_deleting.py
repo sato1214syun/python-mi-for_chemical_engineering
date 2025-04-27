@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-@author: Hiromasa Kaneko
-"""
+"""@author: Hiromasa Kaneko."""  # noqa: N999
 
-import numpy as np
-import numpy.matlib
-import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 import seaborn as sns
 
 # 設定 ここから
