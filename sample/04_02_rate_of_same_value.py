@@ -10,7 +10,7 @@ threshold_of_rate_of_same_value = (
 # 設定 ここまで
 
 dataset = pd.read_csv(
-    "descriptors_with_logS.csv", index_col=0
+    "dataset/descriptors_with_logS.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
