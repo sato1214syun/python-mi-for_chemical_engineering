@@ -30,4 +30,4 @@ deleting_variable_numbers = np.where(
 x_selected = x.drop(x.columns[deleting_variable_numbers], axis=1)
 print("削除後の特徴量の数 :", x_selected.shape[1])
 
-x_selected.to_csv("x_selected_same_value.csv")  # 保存
+x_selected.to_csv("dataset/x_selected_same_value.csv")  # 保存

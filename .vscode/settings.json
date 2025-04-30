@@ -1,17 +1,24 @@
 {
     "cSpell.words": [
+        "cmap",
         "dcekit",
         "ddof",
         "figsize",
+        "Hampel",
         "Hiromasa",
+        "hspace",
         "hstack",
         "Kaneko",
         "polyorder",
         "savgol",
         "unpivot",
+        "vmax",
+        "vmin",
         "xlabel",
         "xlim",
+        "xticklabels",
         "ylabel",
-        "ylim"
+        "ylim",
+        "yticklabels"
     ]
 }
