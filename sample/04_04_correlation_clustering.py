@@ -14,7 +14,7 @@ threshold_of_r = 0.95  # 相関係数の絶対値がこの値以上となる特�
 # 設定 ここまで
 
 dataset = pd.read_csv(
-    "descriptors_with_logS.csv", index_col=0
+    "dataset/descriptors_with_logS.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
@@ -42,7 +42,7 @@ for i in range(r_in_x.shape[0]):
     r_in_x.iloc[i, i] = 10 ^ 10
 clustering = AgglomerativeClustering(
     n_clusters=None,
-    affinity="precomputed",
+    metric="precomputed",
     compute_full_tree=True,
     distance_threshold=1 / threshold_of_r,
     linkage="complete",
@@ -52,21 +52,22 @@ cluster_numbers = clustering.labels_
 cluster_numbers_df = pd.DataFrame(
     cluster_numbers, index=x.columns, columns=["cluster number"]
 )
-cluster_numbers_df.to_csv("cluster_numbers_correlation.csv")
+cluster_numbers_df.to_csv("dataset/cluster_numbers_correlation.csv")
+num_of_clusters = np.unique(cluster_numbers).shape[0]
 print(
-    f"相関係数に基づいてクラスタリングした後の特徴量クラスターの数: {cluster_numbers.max()}"  # noqa: E501
+    f"相関係数に基づいてクラスタリングした後の特徴量クラスターの数: {num_of_clusters}"
 )
 
 # クラスターごとに一つの特徴量を選択
 x_selected = pd.DataFrame([])
 selected_variable_numbers = []
-for i in range(cluster_numbers.max()):
+for i in range(num_of_clusters):
     variable_numbers = np.where(cluster_numbers == i)[0]
     selected_variable_numbers.append(variable_numbers[0])
     x_selected = pd.concat(
         [x_selected, x.iloc[:, variable_numbers[0]]], axis=1, sort=False
     )
-x_selected.to_csv("x_selected_correlation_clustering.csv")  # 保存
+x_selected.to_csv("dataset/x_selected_correlation_clustering.csv")  # 保存
 
 deleted_variable_numbers = list(set(range(x.shape[1])) - set(selected_variable_numbers))
 similarity_matrix = abs(x.corr())
@@ -83,11 +84,11 @@ plt.xlim([0, similarity_matrix.shape[1]])
 plt.ylim([0, similarity_matrix.shape[0]])
 plt.show()
 
-similarity_matrix.to_csv("similarity_matrix_correlation_clustering.csv")  # 保存
+similarity_matrix.to_csv("dataset/similarity_matrix_correlation_clustering.csv")  # 保存
 
 # クラスターごとに特徴量を平均化
 x_averaged = pd.DataFrame([])
-for i in range(cluster_numbers.max()):
+for i in range(num_of_clusters):
     variable_numbers = np.where(cluster_numbers == i)[0]
     if variable_numbers.shape[0] == 1:
         x_averaged = pd.concat(
@@ -104,4 +105,4 @@ for i in range(cluster_numbers.max()):
             [x_averaged, averaged_x_each_cluster], axis=1, sort=False
         )
 
-x_selected.to_csv("x_averaged_correlation_clustering.csv")  # 保存
+x_averaged.to_csv("dataset/x_averaged_correlation_clustering.csv")  # 保存
