@@ -1,6 +1,7 @@
 """@author: Hiromasa Kaneko."""  # noqa: N999
 
 import random
+from multiprocessing import Pool  # 処理速度向上のために追加
 
 import numpy as np
 import pandas as pd
@@ -53,13 +54,6 @@ def create_ind_uniform(  # noqa: D103
     return index
 
 
-toolbox.register("create_ind", create_ind_uniform, min_boundary, max_boundary)
-toolbox.register(
-    "individual", tools.initIterate, creator.Individual, toolbox.create_ind
-)
-toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-
 def eval_one_max(individual: list[np.ndarray]) -> tuple[int | np.ndarray]:  # noqa: D103
     individual_array = np.array(individual)
     selected_x_variable_numbers = np.where(
@@ -104,64 +98,72 @@ def eval_one_max(individual: list[np.ndarray]) -> tuple[int | np.ndarray]:  # no
     return (value,)
 
 
-toolbox.register("evaluate", eval_one_max)
-toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-toolbox.register("select", tools.selTournament, tournsize=3)
+if __name__ == "__main__":
+    pool = Pool()  # CPU のコア数に合わせて変更
+    toolbox.register("map", pool.map)
+    toolbox.register("create_ind", create_ind_uniform, min_boundary, max_boundary)
+    toolbox.register(
+        "individual", tools.initIterate, creator.Individual, toolbox.create_ind
+    )
+    toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+    toolbox.register("evaluate", eval_one_max)
+    toolbox.register("mate", tools.cxTwoPoint)
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+    toolbox.register("select", tools.selTournament, tournsize=3)
 
-pop = toolbox.population(n=number_of_population)
+    pop = toolbox.population(n=number_of_population)
 
-print("Start of evolution")
+    print("Start of evolution")
 
-fitnesses = list(map(toolbox.evaluate, pop))
-for ind, fit in zip(pop, fitnesses, strict=False):
-    ind.fitness.values = fit
-
-print(f"  Evaluated {len(pop)} individuals")
-
-for generation in range(number_of_generation):
-    print(f"-- Generation {generation + 1} --")
-
-    offspring = toolbox.select(pop, len(pop))
-    offspring = list(map(toolbox.clone, offspring))
-
-    for child1, child2 in zip(offspring[::2], offspring[1::2], strict=False):
-        if random.random() < probability_of_crossover:  # noqa: S311
-            toolbox.mate(child1, child2)
-            del child1.fitness.values
-            del child2.fitness.values
-
-    for mutant in offspring:
-        if random.random() < probability_of_mutation:  # noqa: S311
-            toolbox.mutate(mutant)
-            del mutant.fitness.values
-
-    invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-    fitnesses = map(toolbox.evaluate, invalid_ind)  # type: ignore[assignment]
-    for ind, fit in zip(invalid_ind, fitnesses, strict=False):
+    fitnesses = list(toolbox.map(toolbox.evaluate, pop))
+    for ind, fit in zip(pop, fitnesses, strict=False):
         ind.fitness.values = fit
 
-    print(f"  Evaluated {len(invalid_ind)} individuals")
+    print(f"  Evaluated {len(pop)} individuals")
 
-    pop[:] = offspring
-    fits = [ind.fitness.values[0] for ind in pop]  # noqa: PD011
+    for generation in range(number_of_generation):
+        print(f"-- Generation {generation + 1} --")
 
-    length = len(pop)
-    mean = sum(fits) / length
-    sum2 = sum(x * x for x in fits)
-    std = abs(sum2 / length - mean**2) ** 0.5
+        offspring = toolbox.select(pop, len(pop))
+        offspring = list(toolbox.map(toolbox.clone, offspring))
 
-    print(f"  Min {min(fits)}")
-    print(f"  Max {max(fits)}")
-    print(f"  Avg {mean}")
-    print(f"  Std {std}")
+        for child1, child2 in zip(offspring[::2], offspring[1::2], strict=False):
+            if random.random() < probability_of_crossover:  # noqa: S311
+                toolbox.mate(child1, child2)
+                del child1.fitness.values
+                del child2.fitness.values
 
-print("-- End of (successful) evolution --")
+        for mutant in offspring:
+            if random.random() < probability_of_mutation:  # noqa: S311
+                toolbox.mutate(mutant)
+                del mutant.fitness.values
 
-best_individual = tools.selBest(pop, 1)[0]
-best_individual_array = np.array(best_individual)
-selected_x_variable_numbers = np.where(
-    best_individual_array > threshold_of_variable_selection
-)[0]
-selected_descriptors = x_train.iloc[:, selected_x_variable_numbers]
-selected_descriptors.to_csv("dataset/gapls_selected_x.csv")  # 保存
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)  # type: ignore[assignment]
+        for ind, fit in zip(invalid_ind, fitnesses, strict=False):
+            ind.fitness.values = fit
+
+        print(f"  Evaluated {len(invalid_ind)} individuals")
+
+        pop[:] = offspring
+        fits = [ind.fitness.values[0] for ind in pop]  # noqa: PD011
+
+        length = len(pop)
+        mean = sum(fits) / length
+        sum2 = sum(x * x for x in fits)
+        std = abs(sum2 / length - mean**2) ** 0.5
+
+        print(f"  Min {min(fits)}")
+        print(f"  Max {max(fits)}")
+        print(f"  Avg {mean}")
+        print(f"  Std {std}")
+
+    print("-- End of (successful) evolution --")
+
+    best_individual = tools.selBest(pop, 1)[0]
+    best_individual_array = np.array(best_individual)
+    selected_x_variable_numbers = np.where(
+        best_individual_array > threshold_of_variable_selection
+    )[0]
+    selected_descriptors = x_train.iloc[:, selected_x_variable_numbers]
+    selected_descriptors.to_csv("dataset/gapls_selected_x.csv")  # 保存
