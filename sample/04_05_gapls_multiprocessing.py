@@ -2,6 +2,7 @@
 
 import random
 from multiprocessing import Pool  # 処理速度向上のために追加
+from time import perf_counter
 
 import numpy as np
 import pandas as pd
@@ -99,6 +100,8 @@ def eval_one_max(individual: list[np.ndarray]) -> tuple[int | np.ndarray]:  # no
 
 
 if __name__ == "__main__":
+    start = perf_counter()
+
     pool = Pool()  # CPU のコア数に合わせて変更
     toolbox.register("map", pool.map)
     toolbox.register("create_ind", create_ind_uniform, min_boundary, max_boundary)
@@ -167,3 +170,7 @@ if __name__ == "__main__":
     )[0]
     selected_descriptors = x_train.iloc[:, selected_x_variable_numbers]
     selected_descriptors.to_csv("dataset/gapls_selected_x.csv")  # 保存
+
+    end = perf_counter()
+    minutes, seconds = divmod(end - start, 60)
+    print(f"処理時間: {minutes}分{seconds}秒")

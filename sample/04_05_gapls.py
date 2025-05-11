@@ -60,7 +60,7 @@ toolbox.register(
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 
-def eval_one_max(individual: list[np.ndarray]) -> tuple[int | np.ndarray]:  # noqa: D103
+def eval_one_max(individual: list[np.ndarray]) -> tuple[float]:  # noqa: D103
     individual_array = np.array(individual)
     selected_x_variable_numbers = np.where(
         individual_array > threshold_of_variable_selection

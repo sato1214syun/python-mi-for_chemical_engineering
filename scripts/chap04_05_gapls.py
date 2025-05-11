@@ -1,7 +1,7 @@
 """jupyter上でmultiprocessingを使用してGAPLSを実行するスクリプト."""
 
 import random
-from itertools import batched, chain
+from itertools import batched
 from multiprocessing import Pool  # 処理速度向上のために追加
 from typing import cast
 
@@ -102,34 +102,22 @@ def eval_one_max(  # noqa: PLR0913
     return individual
 
 
-def mate(
-    individuals: tuple[creator.Individual, creator.Individual]
-    | tuple[creator.Individual],
-    random_number: float,
-    crossover_probability: float,
-) -> tuple[creator.Individual, creator.Individual] | tuple[creator.Individual]:
-    """個体の交叉."""
-    if len(individuals) == 1 or random_number > crossover_probability:
-        # 1個体の場合か、確率がしきい値より大きい場合は交叉を行わない
-        return individuals
-    individual1, individual2 = individuals
-    tools.cxTwoPoint(individual1, individual2)
-    del individual1.fitness.values, individual2.fitness.values
-    return individual1, individual2
-
-
-def mutate(
-    individual: creator.Individual,
-    random_number: float,
-    mutation_probability: float,
-) -> creator.Individual:
-    """個体の突然変異."""
-    if random_number > mutation_probability:
-        # 確率がしきい値より大きい場合は突然変異を行わない
-        return individual
-    tools.mutFlipBit(individual, indpb=0.05)
-    del individual.fitness.values
+def update_fitness(individual: creator.Individual) -> creator.Individual:
+    """個体の適合度を更新する."""
+    individual.fitness.values = toolbox.evaluate(individual)
     return individual
+
+
+def mate(individual1: creator.Individual, individual2: creator.Individual) -> None:
+    """個体の交叉."""
+    toolbox.mate(individual1, individual2)
+    del individual1.fitness.values, individual2.fitness.values
+
+
+def mutate(individual: creator.Individual) -> None:
+    """個体の突然変異."""
+    toolbox.mutate(individual)
+    del individual.fitness.values
 
 
 def main() -> None:
@@ -161,17 +149,17 @@ def main() -> None:
         y_train=y_train,
     )
 
-    crossover_probability = 0.5
-    mutation_probability = 0.2
     # 2点交叉(Two-point crossover): 2個体のランダムで選択した遺伝子を入れ替える
-    toolbox.register("mate", mate, crossover_probability=crossover_probability)
+    toolbox.register("mate", tools.cxTwoPoint)
     # 突然変異: indpbの確率で、個体の遺伝子を反転させる(特徴量の選択有無を反転)
-    toolbox.register("mutate", mutate, mutation_probability=mutation_probability)
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
     # 個体の選別方法: トーナメント選択で3個体の中から1個体を選択.
     toolbox.register("select", tools.selTournament, tournsize=3)
 
     print("Start of evolution")
 
+    crossover_probability = 0.5
+    mutation_probability = 0.2
     num_of_population = 100  # GAの個体数
     number_of_generation = 150  # GAの世代数
     population = cast(
@@ -183,34 +171,22 @@ def main() -> None:
         if generation > 0:
             # トーナメント選択で、individual 3個体の中1個体を選択。population回繰り返す
             offspring = toolbox.select(population, k=len(population))
-            offspring = list(toolbox.map(toolbox.clone, offspring))  # deepcopy
+            offspring = [toolbox.clone(child) for child in offspring]  # deepcopy
 
             # 親世代を変異させて、子世代を作成
             # 変異済みの判定はfitness.valuesを削除してnot fitness.valid = Trueで行う
             # 2個ずつ個体を取り出して、交叉を行う
-            offspring = list(
-                chain.from_iterable(
-                    toolbox.starmap(
-                        toolbox.mate,
-                        zip(
-                            batched(offspring, 2, strict=False),
-                            [random.random() for _ in range(len(offspring) // 2)],  # noqa: S311
-                            strict=True,
-                        ),
-                    )
-                )
-            )
+            [
+                mate(*children)  # type: ignore[func-returns-value]
+                for children in batched(offspring, 2, strict=False)
+                if len(children) != 1 and random.random() < crossover_probability  # noqa: S311
+            ]
             # 突然変異
-            offspring = list(
-                toolbox.starmap(
-                    toolbox.mutate,
-                    zip(
-                        offspring,
-                        [random.random() for _ in range(len(offspring))],  # noqa: S311
-                        strict=True,
-                    ),
-                )
-            )
+            [
+                mutate(child)  # type: ignore[func-returns-value]
+                for child in offspring
+                if random.random() < mutation_probability  # noqa: S311
+            ]
             # 個体群を新世代に置き換え
             population = offspring
 
@@ -244,6 +220,7 @@ def main() -> None:
         0,
         pl.Series("", [f"sample_{i + 1}" for i in range(selected_descriptors.height)]),
     ).write_csv("dataset/gapls_selected_x.csv")
+
 
 if __name__ == "__main__":
     main()
