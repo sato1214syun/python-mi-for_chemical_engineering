@@ -8,6 +8,9 @@ from deap import base, creator, tools  # type: ignore[import-untyped]
 from sklearn import model_selection
 from sklearn.cross_decomposition import PLSRegression
 
+random.seed(100)
+# random.seed()
+
 # 設定 ここから
 number_of_areas = 5  # 選択する領域の数
 max_width_of_areas = 20  # 選択する領域の幅の最大値
@@ -21,7 +24,7 @@ probability_of_crossover = 0.5
 probability_of_mutation = 0.2
 
 # load dataset
-dataset = pd.read_csv("sample_spectra_dataset_with_y.csv", index_col=0)
+dataset = pd.read_csv("dataset/sample_spectra_dataset_with_y.csv", index_col=0)
 x_train = dataset.iloc[:, 1:]
 y_train = dataset.iloc[:, 0]
 
@@ -123,8 +126,6 @@ toolbox.register("mate", tools.cxTwoPoint)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
-# random.seed(100)
-random.seed()
 pop = toolbox.population(n=number_of_population)
 
 print("Start of evolution")
@@ -200,4 +201,4 @@ for area_number in range(number_of_areas):
         ]
 
 selected_descriptors = x_train.iloc[:, selected_x_variable_numbers]
-selected_descriptors.to_csv("gawlspls_selected_x.csv")  # 保存
+selected_descriptors.to_csv("dataset/gawlspls_selected_x.csv")  # 保存

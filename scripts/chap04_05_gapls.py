@@ -97,8 +97,7 @@ def eval_one_max(  # noqa: PLR0913
         .add(1)
         .name.prefix("r2_")
     )
-    fitness_val = (r2_cv_all.max_horizontal().item(0),)
-    individual.fitness.values = fitness_val
+    individual.fitness.values = (r2_cv_all.max_horizontal().max(),)
     return individual
 
 
