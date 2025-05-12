@@ -1,15 +1,15 @@
-"""jupyter上でmultiprocessingを使用してGAPLSを実行するスクリプト."""
+"""jupyter上でmultiprocessingを使用してGASVRを実行するスクリプト."""
+
+# 04_05 GASVR
 
 import random
 from itertools import batched
-from multiprocessing import Pool  # 処理速度向上のために追加
+from multiprocessing import Pool
 from typing import cast
 
-import numpy as np
 import polars as pl
 from deap import base, creator, tools  # type: ignore[import-untyped]
-from sklearn import model_selection
-from sklearn.cross_decomposition import PLSRegression
+from sklearn import model_selection, svm
 
 # シードの固定
 random.seed(100)
@@ -23,18 +23,18 @@ x_train = dataset.drop(dataset.columns[0])  # 説明変数
 normalized_x_train = x_train.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
 normalized_y_train = y_train.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
 
-# GAPLSの設定
+# GASVRの設定
 # deapのcreatorを使用してFitnessMaxとIndividualのクラスを作成
 creator.create(  # for minimization, set weights as (-1.0,)
     "FitnessMax", base.Fitness, weights=(1.0,)
 )
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
-# toolboxに関数を登録
+# toolboxに登録する関数の準備
 toolbox = base.Toolbox()
 
 
-# 個体の生成用関数の登録
+# 個体の生成用関数
 def create_individual(min_boundary: pl.Series, max_boundary: pl.Series) -> list:
     """個体の生成用関数."""
     return [
@@ -43,16 +43,15 @@ def create_individual(min_boundary: pl.Series, max_boundary: pl.Series) -> list:
     ]
 
 
-# 評価関数の登録
+# 評価関数
 def eval_one_max(  # noqa: PLR0913
     individual: creator.Individual,
     fold_number: int,
-    max_number_of_components: int,
     threshold_of_variable_selection: float,
     normalized_x_train: pl.DataFrame,
-    normalized_y_train: pl.DataFrame,
-    y_train: pl.DataFrame,
-) -> float:
+    normalized_y_train_series: pl.Series,
+    y_train_series: pl.Series,
+) -> tuple[float]:
     """個体の評価関数."""
     selected_normalized_x_train = normalized_x_train.select(
         [
@@ -67,38 +66,33 @@ def eval_one_max(  # noqa: PLR0913
         return individual
 
     # cross-validation
-    min_pls_component = min(
-        np.linalg.matrix_rank(selected_normalized_x_train), max_number_of_components
+    rounded_hyper_prams = pl.Series(individual).round()[-3:]
+    model_in_cv = svm.SVR(
+        kernel="rbf",
+        C=2 ** rounded_hyper_prams.item(0),
+        epsilon=2 ** rounded_hyper_prams.item(1),
+        gamma=2 ** rounded_hyper_prams.item(2),
     )
-    estimated_y_train_cv_df = y_train.clone().rename({"boiling_point": "y_train"})
-    for pls_component in range(1, min_pls_component + 1):
-        cross_val_predicts_np = model_selection.cross_val_predict(
-            PLSRegression(n_components=pls_component),
-            selected_normalized_x_train,  # type: ignore[arg-type]
-            normalized_y_train,
-            cv=fold_number,
-        )
-        estimated_y_train_cv_df = estimated_y_train_cv_df.with_columns(
-            pl.Series(f"{pls_component}", cross_val_predicts_np.flatten())
-        )
-
+    cross_val_predicts_np = model_selection.cross_val_predict(
+        model_in_cv,
+        selected_normalized_x_train,  # type: ignore[arg-type]
+        normalized_y_train_series,
+        cv=fold_number,
+    )
+    estimated_y_train_in_cv_series = pl.Series(
+        "cv_predict", cross_val_predicts_np.flatten()
+    )
     # クロスバリデーションの結果を元のスケールに戻す
-    estimated_y_train_cv_df = estimated_y_train_cv_df.with_columns(
-        pl.exclude("y_train") * pl.col("y_train").std() + pl.col("y_train").mean()
+    estimated_y_train_in_cv_series = (
+        estimated_y_train_in_cv_series * y_train_series.std() + y_train_series.mean()
     )
     # r2を計算
-    r2_cv_all = estimated_y_train_cv_df.select(
-        pl.exclude("y_train")
-        .sub(pl.col("y_train"))
-        .pow(2)
-        .sum()
-        .truediv(pl.col("y_train").sub(pl.col("y_train").mean()).pow(2).sum())
-        .mul(-1)
-        .add(1)
-        .name.prefix("r2_")
+    r2_cv = (
+        1
+        - (estimated_y_train_in_cv_series - y_train_series).pow(2).sum()
+        / (y_train_series - y_train_series.mean()).pow(2).sum()
     )
-    fitness_val = (r2_cv_all.max_horizontal().item(0),)
-    individual.fitness.values = fitness_val
+    individual.fitness.values = (r2_cv,)
     return individual
 
 
@@ -111,17 +105,23 @@ def mate(individual1: creator.Individual, individual2: creator.Individual) -> No
 def mutate(individual: creator.Individual) -> None:
     """個体の突然変異."""
     toolbox.mutate(individual)
-    del individual.fitness.values
 
 
 def main() -> None:
     """メイン関数."""
-    # 個体の生成
-    min_boundary = pl.Series([0.0] * x_train.width)
-    max_boundary = pl.Series([1.0] * x_train.width)
+    # 最適化開始
+    # 末尾3つはSVRのハイパーパラメータC, epsilon, gamma の範囲
+    min_boundary = pl.Series([0.0] * (x_train.width)).append(
+        pl.Series([-5, -10, -20]).cast(pl.Float64)
+    )
+    max_boundary = pl.Series([1.0] * (x_train.width)).append(
+        pl.Series([10, 0, 10]).cast(pl.Float64)
+    )
+
     pool = Pool()  # CPU のコア数に合わせて変更
     toolbox.register("map", pool.map)
     toolbox.register("starmap", pool.starmap)
+    # toolboxに関数を登録
     toolbox.register("create_individual", create_individual, min_boundary, max_boundary)
     toolbox.register(
         "individual",
@@ -130,32 +130,29 @@ def main() -> None:
         toolbox.create_individual,  # generator
     )
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+    # 評価関数を登録
     toolbox.register(
         "evaluate",
         eval_one_max,
         fold_number=5,  # クロスバリデーションのfold数
-        max_number_of_components=10,  # PLS の最大成分数
         threshold_of_variable_selection=(  # 染色体の0, 1を分ける閾値
             threshold_of_variable_selection := 0.5
         ),
         normalized_x_train=normalized_x_train,
-        normalized_y_train=normalized_y_train,
-        y_train=y_train,
+        normalized_y_train_series=normalized_y_train.to_series(0),
+        y_train_series=y_train.to_series(0),
     )
-
-    # 2点交叉(Two-point crossover): 2個体のランダムで選択した遺伝子を入れ替える
+    # その他の関数はGAPLSと同じ
     toolbox.register("mate", tools.cxTwoPoint)
-    # 突然変異: indpbの確率で、個体の遺伝子を反転させる(特徴量の選択有無を反転)
     toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-    # 個体の選別方法: トーナメント選択で3個体の中から1個体を選択.
     toolbox.register("select", tools.selTournament, tournsize=3)
-
     print("Start of evolution")
 
-    crossover_probability = 0.5
-    mutation_probability = 0.2
     num_of_population = 100  # GAの個体数
     number_of_generation = 150  # GAの世代数
+    crossover_probability = 0.5
+    mutation_probability = 0.2
     population = cast(
         "list[creator.Individual]", toolbox.population(n=num_of_population)
     )
@@ -190,11 +187,11 @@ def main() -> None:
         # 各個体の適合度を更新
         population_iter = toolbox.map(toolbox.evaluate, population)
         population = list(population_iter)
-        fits = [individual.fitness.values[0] for individual in population_iter]
-        mean = sum(fits) / num_of_population
+        fits: list[float] = [individual.fitness.values[0] for individual in population]
+        length = len(population)
+        mean = sum(fits) / length
         sum2 = sum(fit**2 for fit in fits)
-        std = abs(sum2 / num_of_population - mean**2) ** 0.5
-
+        std = abs(sum2 / length - mean**2) ** 0.5
         print(f"\tEvaluated {num_of_updated_children} individuals")
         print(f"\tMin {min(fits)}")
         print(f"\tMax {max(fits)}")
@@ -203,6 +200,7 @@ def main() -> None:
 
     print("-- End of (successful) evolution --")
 
+    # 最適化結果のを保存
     best_individual = tools.selBest(population, 1)[0]
     best_individual_series = pl.Series(best_individual)
     selected_descriptors = x_train.select(
@@ -213,7 +211,18 @@ def main() -> None:
     selected_descriptors.insert_column(
         0,
         pl.Series("", [f"sample_{i + 1}" for i in range(selected_descriptors.height)]),
-    ).write_csv("dataset/gapls_selected_x.csv")
+    ).write_csv("dataset/gasvr_selected_x.csv", quote_style="never")
+    # ハイパーパラメーターを保存
+    selected_hyperparameters = (
+        best_individual_series.tail(3)
+        .rename("hyperparameters of SVR (log2)")
+        .round(0)
+        .to_frame()
+        .insert_column(0, pl.Series("", ["C", "epsilon", "gamma"]))
+    )
+    selected_hyperparameters.write_csv(
+        "dataset/gasvr_selected_hyperparameters.csv", quote_style="never"
+    )
 
 
 if __name__ == "__main__":
