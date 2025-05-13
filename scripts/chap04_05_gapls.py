@@ -17,11 +17,11 @@ random.seed(100)
 
 # データの読み込みと正規化
 dataset = pl.read_csv("dataset/selected_descriptors_with_boiling_point.csv").drop("")
-y_train = dataset.select(dataset.columns[0])  # 目的変数
-x_train = dataset.drop(dataset.columns[0])  # 説明変数
+y_train = dataset.to_series(0)  # 目的変数
+x_train = dataset.drop(y_train.name)  # 説明変数
 # 正規化
+normalized_y_train = (y_train - y_train.mean()) / y_train.std()
 normalized_x_train = x_train.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
-normalized_y_train = y_train.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
 
 # GAPLSの設定
 # deapのcreatorを使用してFitnessMaxとIndividualのクラスを作成
@@ -50,8 +50,8 @@ def eval_one_max(  # noqa: PLR0913
     max_number_of_components: int,
     threshold_of_variable_selection: float,
     normalized_x_train: pl.DataFrame,
-    normalized_y_train: pl.DataFrame,
-    y_train: pl.DataFrame,
+    normalized_y_train: pl.Series,
+    y_train: pl.Series,
 ) -> float:
     """個体の評価関数."""
     selected_normalized_x_train = normalized_x_train.select(
@@ -70,32 +70,29 @@ def eval_one_max(  # noqa: PLR0913
     min_pls_component = min(
         np.linalg.matrix_rank(selected_normalized_x_train), max_number_of_components
     )
-    estimated_y_train_cv_df = y_train.clone().rename({"boiling_point": "y_train"})
-    for pls_component in range(1, min_pls_component + 1):
-        cross_val_predicts_np = model_selection.cross_val_predict(
-            PLSRegression(n_components=pls_component),
-            selected_normalized_x_train,  # type: ignore[arg-type]
-            normalized_y_train,
-            cv=fold_number,
-        )
-        estimated_y_train_cv_df = estimated_y_train_cv_df.with_columns(
-            pl.Series(f"{pls_component}", cross_val_predicts_np.flatten())
-        )
+    estimated_y_train_cv = pl.DataFrame(
+        {
+            f"{pls_component}": model_selection.cross_val_predict(
+                PLSRegression(n_components=pls_component),
+                selected_normalized_x_train,  # type: ignore[arg-type]
+                normalized_y_train,
+                cv=fold_number,
+            ).flatten()
+            for pls_component in range(1, min_pls_component + 1)
+        }
+    )
 
     # クロスバリデーションの結果を元のスケールに戻す
-    estimated_y_train_cv_df = estimated_y_train_cv_df.with_columns(
-        pl.exclude("y_train") * pl.col("y_train").std() + pl.col("y_train").mean()
+    estimated_y_train_cv = estimated_y_train_cv.with_columns(
+        pl.all() * y_train.std() + y_train.mean()
     )
     # r2を計算
-    r2_cv_all = estimated_y_train_cv_df.select(
-        pl.exclude("y_train")
-        .sub(pl.col("y_train"))
-        .pow(2)
-        .sum()
-        .truediv(pl.col("y_train").sub(pl.col("y_train").mean()).pow(2).sum())
-        .mul(-1)
-        .add(1)
-        .name.prefix("r2_")
+    r2_cv_all = estimated_y_train_cv.select(
+        (
+            pl.lit(1)
+            - ((pl.all() - y_train) ** 2).sum()
+            / ((y_train - y_train.mean()) ** 2).sum()
+        ).name.prefix("r2_")
     )
     individual.fitness.values = (r2_cv_all.max_horizontal().max(),)
     return individual
