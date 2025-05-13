@@ -9,7 +9,6 @@ from sklearn import model_selection
 from sklearn.cross_decomposition import PLSRegression
 
 random.seed(100)
-# random.seed()
 
 # 設定 ここから
 number_of_areas = 5  # 選択する領域の数
@@ -44,10 +43,13 @@ max_boundary = np.ones(number_of_areas * 2) * x_train.shape[1]
 max_boundary[np.arange(1, number_of_areas * 2, 2)] = max_width_of_areas
 
 
-def create_ind_uniform(min_boundary, max_boundary):
+def create_ind_uniform(
+    min_boundary: np.ndarray, max_boundary: np.ndarray
+) -> list[float]:
+    """個体の初期化."""
     index = []
-    for min, max in zip(min_boundary, max_boundary, strict=False):
-        index.append(random.uniform(min, max))
+    for min_val, max_val in zip(min_boundary, max_boundary, strict=False):
+        index.append(random.uniform(min_val, max_val))  # noqa: S311
     return index
 
 
@@ -58,7 +60,8 @@ toolbox.register(
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 
-def evalOneMax(individual):
+def eval_one_max(individual: creator.Individual) -> tuple[float, ...]:
+    """評価関数."""
     individual_array = np.array(np.floor(individual), dtype=int)
     selected_x_variable_numbers = np.zeros(0, dtype=int)
     for area_number in range(number_of_areas):
@@ -107,7 +110,7 @@ def evalOneMax(individual):
                 )
             )
             estimated_y_train_in_cv = (
-                estimated_y_train_in_cv * y_train.std(ddof=1) + y_train.mean()
+                estimated_y_train_in_cv * y_train.std(ddof=1) + y_train.mean()  # type: ignore[assignment]
             )
             r2_cv_all.append(
                 1
@@ -121,7 +124,7 @@ def evalOneMax(individual):
     return (value,)
 
 
-toolbox.register("evaluate", evalOneMax)
+toolbox.register("evaluate", eval_one_max)
 toolbox.register("mate", tools.cxTwoPoint)
 toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
@@ -134,7 +137,7 @@ fitnesses = list(map(toolbox.evaluate, pop))
 for ind, fit in zip(pop, fitnesses, strict=False):
     ind.fitness.values = fit
 
-print("  Evaluated %i individuals" % len(pop))
+print(f"  Evaluated {len(pop)} individuals")
 
 for generation in range(number_of_generation):
     print(f"-- Generation {generation + 1} --")
@@ -143,35 +146,35 @@ for generation in range(number_of_generation):
     offspring = list(map(toolbox.clone, offspring))
 
     for child1, child2 in zip(offspring[::2], offspring[1::2], strict=False):
-        if random.random() < probability_of_crossover:
+        if random.random() < probability_of_crossover:  # noqa: S311
             toolbox.mate(child1, child2)
             del child1.fitness.values
             del child2.fitness.values
 
     for mutant in offspring:
-        if random.random() < probability_of_mutation:
+        if random.random() < probability_of_mutation:  # noqa: S311
             toolbox.mutate(mutant)
             del mutant.fitness.values
 
     invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-    fitnesses = map(toolbox.evaluate, invalid_ind)
+    fitnesses = map(toolbox.evaluate, invalid_ind)  # type: ignore[assignment]
     for ind, fit in zip(invalid_ind, fitnesses, strict=False):
         ind.fitness.values = fit
 
-    print("  Evaluated %i individuals" % len(invalid_ind))
+    print(f"  Evaluated {len(invalid_ind)} individuals")
 
     pop[:] = offspring
-    fits = [ind.fitness.values[0] for ind in pop]
+    fits = [ind.fitness.values[0] for ind in pop]  # noqa: PD011
 
     length = len(pop)
     mean = sum(fits) / length
     sum2 = sum(x * x for x in fits)
     std = abs(sum2 / length - mean**2) ** 0.5
 
-    print("  Min %s" % min(fits))
-    print("  Max %s" % max(fits))
-    print("  Avg %s" % mean)
-    print("  Std %s" % std)
+    print(f"  Min {min(fits)}")
+    print(f"  Max {max(fits)}")
+    print(f"  Avg {mean}")
+    print(f"  Std {std}")
 
 print("-- End of (successful) evolution --")
 
