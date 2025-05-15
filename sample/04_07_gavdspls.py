@@ -81,9 +81,8 @@ autoscaled_x_train = (x_train - x_train.mean(axis=0)) / x_train.std(axis=0, ddof
 autoscaled_y_train = (y_train - y_train.mean()) / y_train.std(ddof=1)
 
 # GAVDSPLS
-creator.create(
-    "FitnessMax", base.Fitness, weights=(1.0,)
-)  # for minimization, set weights as (-1.0,)
+# for minimization, set weights as (-1.0,)
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
@@ -130,6 +129,7 @@ def eval_one_max(individual: creator.Individual) -> tuple[float, ...]:
                 first_number_of_process_variables[flag[0]]
                 - individual_array[2 * area_number]
             )
+
         flag = np.where(
             first_number_of_process_variables
             - individual_array[2 * area_number]
