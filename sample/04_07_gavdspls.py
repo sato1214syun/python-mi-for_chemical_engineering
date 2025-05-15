@@ -218,7 +218,6 @@ print(f"  Evaluated {len(pop)} individuals")
 
 for generation in range(number_of_generation):
     print(f"-- Generation {generation + 1} --")
-
     offspring = toolbox.select(pop, len(pop))
     offspring = list(map(toolbox.clone, offspring))
 
