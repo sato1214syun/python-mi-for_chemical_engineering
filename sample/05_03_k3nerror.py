@@ -12,7 +12,7 @@ candidates_of_perplexity = np.arange(5, 105, 5, dtype=int)  # t-SNE の perplexi
 # 設定 ここまで
 
 dataset = pd.read_csv(
-    "selected_descriptors_with_boiling_point.csv", index_col=0
+    "dataset/selected_descriptors_with_boiling_point.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
@@ -45,16 +45,16 @@ print("k3n-error による perplexity の最適値 :", optimal_perplexity)
 t = TSNE(
     perplexity=optimal_perplexity, n_components=2, init="pca", random_state=10
 ).fit_transform(autoscaled_x)
-t = pd.DataFrame(
+t = pd.DataFrame(  # type: ignore[assignment]
     t, index=dataset.index, columns=["t_1", "t_2"]
 )  # pandas の DataFrame 型に変換。行の名前・列の名前も設定
-t.to_csv(
-    f"tsne_score_perplexity_{optimal_perplexity}.csv"
+t.to_csv(  # type: ignore[attr-defined]
+    f"result/tsne_score_perplexity_{optimal_perplexity}.csv"
 )  # csv ファイルに保存。同じ名前のファイルがあるときは上書きされるため注意
 
 # t1 と t2 の散布図
 plt.rcParams["font.size"] = 18
-plt.scatter(t.iloc[:, 0], t.iloc[:, 1], c="blue")
+plt.scatter(t.iloc[:, 0], t.iloc[:, 1], c="blue")  # type: ignore[attr-defined]
 plt.xlabel("t1")
 plt.ylabel("t2")
 plt.show()
