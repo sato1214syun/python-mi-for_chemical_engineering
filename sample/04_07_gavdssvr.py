@@ -27,7 +27,7 @@ probability_of_mutation = 0.2
 MISSING_NUMBER = 999
 
 # load and pre-process dataset
-dataset = pd.read_csv("debutanizer_y_measurement_span_10.csv", index_col=0)
+dataset = pd.read_csv("dataset/debutanizer_y_measurement_span_10.csv", index_col=0)
 dataset = dataset.fillna(MISSING_NUMBER)
 original_indexes = dataset.index
 original_x_variable_names = dataset.columns[1:]
@@ -316,10 +316,10 @@ for area_number in range(number_of_areas):
         ]
 
 selected_descriptors = x_train.iloc[:, selected_x_variable_numbers]  # type: ignore[attr-defined]
-selected_descriptors.to_csv("gavdssvr_selected_x.csv")  # 保存
+selected_descriptors.to_csv("dataset/gavdssvr_selected_x.csv")  # 保存
 selected_hyperparameters = pd.DataFrame(
     np.round(best_individual_array[-3:]),
     index=["C", "epsilon", "gamma"],
     columns=["hyperparameters of SVR (log2)"],
 )
-selected_hyperparameters.to_csv("gavdssvr_selected_hyperparameters.csv")  # 保存
+selected_hyperparameters.to_csv("dataset/gavdssvr_selected_hyperparameters.csv")  # 保存
