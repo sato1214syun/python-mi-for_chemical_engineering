@@ -41,5 +41,6 @@
         "ylabel",
         "ylim",
         "yticklabels"
-    ]
+    ],
+    "python.analysis.inlayHints.functionReturnTypes": false
 }
