@@ -17,8 +17,8 @@ wavelengths = np.array(x.columns, dtype="float64")  # 波長
 preprocessed_x = savgol_filter(
     x.values, window_length=window_length, polyorder=polyorder, deriv=deriv
 )  # SG 法
-preprocessed_x = pd.DataFrame(preprocessed_x, index=x.index, columns=x.columns)
-preprocessed_x.to_csv(
+preprocessed_x = pd.DataFrame(preprocessed_x, index=x.index, columns=x.columns)  # type: ignore[assignment]
+preprocessed_x.to_csv(  # type: ignore[attr-defined]
     f"preprocessed_sample_spectra_dataset_w{window_length}_p{polyorder}_d{deriv}.csv"
 )  # 保存
 
@@ -33,7 +33,10 @@ plt.legend()
 plt.show()  # 以上の設定で描画
 
 plt.plot(
-    wavelengths, preprocessed_x.iloc[plot_spectra_number, :], "b-", label="preprocessed"
+    wavelengths,
+    preprocessed_x.iloc[plot_spectra_number, :],  # type: ignore[attr-defined]
+    "b-",
+    label="preprocessed",
 )  # プロット
 plt.xlabel("wavelength [nm]")  # x 軸の名前
 plt.ylabel("Absorbance")  # y 軸の名前

@@ -1,7 +1,7 @@
-"""04_05 GASVR."""
+"""04_05 GAWLSSVR."""
 
 import random
-from itertools import batched
+from itertools import batched, cycle
 from typing import cast
 
 import polars as pl
@@ -10,10 +10,9 @@ from sklearn import model_selection, svm
 
 # シードの固定
 random.seed(100)
-# random.seed()  # noqa: ERA001
 
 # データの読み込みと正規化
-dataset = pl.read_csv("dataset/selected_descriptors_with_boiling_point.csv").drop("")
+dataset = pl.read_csv("dataset/sample_spectra_dataset_with_y.csv").drop("")
 y_train = dataset.to_series(0)  # 目的変数
 x_train = dataset.drop(y_train.name)  # 説明変数
 # 正規化
@@ -21,7 +20,7 @@ normalized_y_train = (y_train - y_train.mean()) / y_train.std()
 normalized_x_train = x_train.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
 
 
-# GASVRの設定
+# GAWLSSVRの設定
 # deapのcreatorを使用してFitnessMaxとIndividualのクラスを作成
 creator.create(  # for minimization, set weights as (-1.0,)
     "FitnessMax", base.Fitness, weights=(1.0,)
@@ -30,15 +29,6 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 
 # toolboxに登録する関数の準備
 toolbox = base.Toolbox()
-# 個体の生成用関数
-# 末尾3つはSVRのハイパーパラメータ
-# C, epsilon, gamma の範囲
-min_boundary = pl.Series([0.0] * (x_train.width)).append(
-    pl.Series([-5, -10, -20]).cast(pl.Float64)
-)
-max_boundary = pl.Series([1.0] * (x_train.width)).append(
-    pl.Series([10, 0, 10]).cast(pl.Float64)
-)
 
 
 def create_individual(min_boundary: pl.Series, max_boundary: pl.Series) -> list:
@@ -47,6 +37,20 @@ def create_individual(min_boundary: pl.Series, max_boundary: pl.Series) -> list:
         random.uniform(min_boundary[i], max_boundary[i])  # noqa: S311
         for i in range(len(min_boundary))
     ]
+
+
+NUM_OF_RANGE = 5  # 選択する領域の数
+MAX_WIDTH_IN_A_AREA = 20  # 選択する領域の幅の最大値
+# 個体の生成用関数
+# 末尾3つはSVRのハイパーパラメータ
+# C, epsilon, gamma の範囲
+min_boundary = pl.Series([0] * NUM_OF_RANGE * 2).append(
+    pl.Series([-5, -10, -20]).cast(pl.Int64)
+)
+cycle_iter = cycle([x_train.width, MAX_WIDTH_IN_A_AREA])
+max_boundary = pl.Series([next(cycle_iter) for _ in range(NUM_OF_RANGE * 2)]).append(
+    pl.Series([10, 0, 10]).cast(pl.Int64)
+)
 
 
 # toolboxに関数を登録
@@ -61,25 +65,56 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 
 # 評価関数
-def eval_one_max(  # noqa: PLR0913
+def eval_one_max(
     individual: creator.Individual,
     fold_number: int,
-    threshold_of_variable_selection: float,
     normalized_x_train: pl.DataFrame,
     normalized_y_train: pl.Series,
     y_train: pl.Series,
 ) -> tuple[float]:
     """個体の評価関数."""
+    # [開始波長のインデックス, 波長範囲のリスト]を取り出し、小数点は切り捨て
+    selected_wl_indices = (
+        pl.DataFrame(individual[: NUM_OF_RANGE * 2], ["wl_idx_and_range"])
+        .select(
+            pl.col("wl_idx_and_range")
+            .floor()  # 小数点切り捨て
+            .cast(pl.Int64)
+            .reshape((NUM_OF_RANGE, 2))  # [波長開始index, 波長範囲]の配列に並べ替え
+            .arr.to_struct(["start_wl_idx", "wl_range"])  # structに変換
+        )
+        .unnest("wl_idx_and_range")  # structを別の列に展開
+        .with_columns(
+            # 波長終了indexを計算
+            (pl.col("start_wl_idx") + pl.col("wl_range")).alias("end__wl_idx")
+        )
+        .drop("wl_range")
+        .select(
+            # 波長(特徴量・遺伝子)のindexを全て抽出
+            pl.int_ranges(
+                "start_wl_idx",
+                pl.min_horizontal(
+                    pl.col("end__wl_idx"), pl.lit(normalized_x_train.width)
+                ).alias("wl_indices"),
+            )
+            .explode()
+            .drop_nulls()  # 波長の範囲が0の時にNoneになるので削除
+        )
+        .to_series(0)
+        .to_list()
+    )
+
+    # 選択された変数の数が0の場合は、適合度を-999にする
+    if not selected_wl_indices:
+        return (-999,)
+
     selected_normalized_x_train = normalized_x_train.select(
+        # 波長(特徴量)インデックスの重複に対応する
         [
-            col
-            for i, col in enumerate(normalized_x_train.columns)
-            if individual[i] > threshold_of_variable_selection
+            pl.col(normalized_x_train.columns[idx]).alias(f"{i}")
+            for i, idx in enumerate(selected_wl_indices)
         ]
     )
-    # 選択された変数の数が0の場合は、適合度を-999にする
-    if not len(selected_normalized_x_train.columns):
-        return (-999,)
 
     # cross-validation
     rounded_hyper_prams = pl.Series(individual).round()[-3:]
@@ -113,9 +148,6 @@ toolbox.register(
     "evaluate",
     eval_one_max,
     fold_number=(fold_number := 5),  # クロスバリデーションのfold数
-    threshold_of_variable_selection=(  # 染色体の0, 1を分ける閾値
-        threshold_of_variable_selection := 0.5
-    ),
     normalized_x_train=normalized_x_train,
     normalized_y_train=normalized_y_train,
     y_train=y_train,
@@ -181,14 +213,13 @@ for generation in range(NUM_OF_GENERATION + 1):
         child if child.fitness.valid else update_fitness(child) for child in population
     ]
 
-    print(f"\tEvaluated {num_of_updated_children} individuals")
-
     fits: list[float] = [individual.fitness.values[0] for individual in population]
     length = len(population)
     mean = sum(fits) / length
     sum2 = sum(fit**2 for fit in fits)
     std = abs(sum2 / length - mean**2) ** 0.5
 
+    print(f"\tEvaluated {num_of_updated_children} individuals")
     print(f"\tMin {min(fits)}")
     print(f"\tMax {max(fits)}")
     print(f"\tAvg {mean}")
@@ -199,14 +230,41 @@ print("-- End of (successful) evolution --")
 # 最適化結果のを保存
 best_individual = tools.selBest(population, 1)[0]
 best_individual_series = pl.Series(best_individual)
-selected_descriptors = x_train.select(
-    col
-    for i, col in enumerate(x_train.columns)
-    if best_individual_series[i] > threshold_of_variable_selection
+
+selected_var_indices = (
+    pl.DataFrame(best_individual[: NUM_OF_RANGE * 2], ["wl_idx_and_range"])
+    .select(
+        pl.col("wl_idx_and_range")
+        .floor()  # 小数点切り捨て
+        .cast(pl.Int64)
+        .reshape((NUM_OF_RANGE, 2))  # [波長開始index, 波長範囲]の配列に並べ替え
+        .arr.to_struct(["start_wl_idx", "wl_range"])  # structに変換
+    )
+    .unnest("wl_idx_and_range")  # structを別の列に展開
+    .with_columns(
+        # 波長終了indexを計算
+        (pl.col("start_wl_idx") + pl.col("wl_range")).alias("end__wl_idx")
+    )
+    .drop("wl_range")
+    .select(
+        # 波長(特徴量・遺伝子)のindexを全て抽出
+        pl.int_ranges(
+            "start_wl_idx",
+            pl.min_horizontal(
+                pl.col("end__wl_idx"), pl.lit(normalized_x_train.width)
+            ).alias("wl_indices"),
+        )
+        .explode()
+        .drop_nulls()  # 波長の範囲が0の時にNoneになるので削除
+    )
+    .to_series(0)
+    .unique(maintain_order=True)
+    .to_list()
 )
+selected_descriptors = x_train.select(pl.nth(selected_var_indices))
 selected_descriptors.insert_column(
     0, pl.Series("", [f"sample_{i + 1}" for i in range(selected_descriptors.height)])
-).write_csv("result/gasvr_selected_x.csv", quote_style="never")
+).write_csv("result/gawlssvr_selected_x.csv", quote_style="never")
 # ハイパーパラメーターを保存
 selected_hyperparameters = (
     best_individual_series.tail(3)
@@ -216,5 +274,5 @@ selected_hyperparameters = (
     .insert_column(0, pl.Series("", ["C", "epsilon", "gamma"]))
 )
 selected_hyperparameters.write_csv(
-    "dataset/gasvr_selected_hyperparameters.csv", quote_style="never"
+    "result/gawlssvr_selected_hyperparameters.csv", quote_style="never"
 )
