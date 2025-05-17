@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "Boruta",
         "cmap",
         "dcekit",
         "ddof",
@@ -19,6 +20,7 @@
         "indpb",
         "Kaneko",
         "linalg",
+        "Madelon",
         "matplotlib",
         "ndarray",
         "nerror",

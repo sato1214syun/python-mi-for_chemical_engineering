@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "boruta>=0.4.3",
     "dcekit>=2.14.1",
     "deap>=1.4.2",
     "matplotlib>=3.10.1",
@@ -18,6 +19,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "jupyter>=1.1.1",
     "microsoft-python-type-stubs",
     "pandas-stubs>=2.2.3.250308",
     "pyarrow>=19.0.1",
