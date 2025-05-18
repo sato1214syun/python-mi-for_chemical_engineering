@@ -2,6 +2,7 @@
     "cSpell.words": [
         "Boruta",
         "cmap",
+        "colorbar",
         "dcekit",
         "ddof",
         "deap",
@@ -27,6 +28,7 @@
         "numpy",
         "polyorder",
         "pyarrow",
+        "rbfs",
         "savgol",
         "scikit",
         "scipy",

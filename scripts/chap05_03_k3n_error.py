@@ -33,13 +33,10 @@ candidates_of_perplexity = pl.int_range(5, 105, 5, eager=True)
 k3n_errors = pl.Series("k3n_error", dtype=pl.Float64)
 for i, perplexity in enumerate(candidates_of_perplexity):
     print(i + 1, "/", len(candidates_of_perplexity))
-
     t = pl.DataFrame(
         TSNE(
             n_components, perplexity=perplexity, init="pca", random_state=10
-        ).fit_transform(
-            normalized_x.to_numpy()  # pl.DataFrameだとサンプルの結果と差が出る
-        )
+        ).fit_transform(normalized_x)
     )
     scaled_t = t.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
     k3n_errors.append(
@@ -67,7 +64,7 @@ t = pl.DataFrame(
 )
 t.columns = ["t1", "t2"]
 index = pl.Series("", [f"sample_{i + 1}" for i in range(t.height)])
-t.insert_column(0, index).write_csv(
+t.clone().insert_column(0, index).write_csv(
     f"result/tsne_score_perplexity_{optimal_perplexity}.csv", quote_style="never"
 )
 

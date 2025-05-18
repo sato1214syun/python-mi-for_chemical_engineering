@@ -10,20 +10,20 @@ from dcekit.validation import k3nerror  # type: ignore[import-untyped]
 # settings
 candidates_of_shape_of_map = np.arange(30, 31, dtype=int)  # k の候補
 candidates_of_shape_of_rbf_centers = np.arange(2, 22, 2, dtype=int)  # q の候補
-candidates_of_variance_of_rbfs = 2 ** np.arange(-5, 4, 2, dtype=float)  # σ^2 の候補
+candidates_of_variance_of_rbfs = 2 ** np.arange(-5, 4, 2, dtype=float)  # sigma^2 の候補
 candidates_of_lambda_in_em_algorithm = 2 ** np.arange(
     -4, 0, dtype=float
-)  # 正則化項 (λ) の候補
+)  # 正則化項 (lambda) の候補
 candidates_of_lambda_in_em_algorithm = np.append(
     0, candidates_of_lambda_in_em_algorithm
 )  # 正則化項 (λ) の候補
 number_of_iterations = 300  # EM アルゴリズムにおける繰り返し回数
-display_flag = False  # EM アルゴリズムにおける進捗を表示する (True) かしない (Flase) か
+display_flag = False  # EM アルゴリズムにおける進捗を表示する (True) かしない (False) か
 k_in_k3nerror = 10  # k3n-error における k
 
 # load dataset
 dataset = pd.read_csv(
-    "selected_descriptors_with_boiling_point.csv", index_col=0
+    "dataset/selected_descriptors_with_boiling_point.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
