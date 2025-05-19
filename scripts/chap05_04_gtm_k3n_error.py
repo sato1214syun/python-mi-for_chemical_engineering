@@ -1,21 +1,34 @@
 """05_04 generative topographic mapping (GTM)."""
 
+# %%
 import itertools
 import sys
 
 import matplotlib.pyplot as plt
 import polars as pl
 from dcekit.generative_model import GTM  # type: ignore[import-untyped]
-from dcekit.validation import k3nerror  # type: ignore[import-untyped]
+from dcekit.validation import k3nerror
+from traitlets import Bool  # type: ignore[import-untyped]
 
 
-def calc_k3n_error(  # noqa: D103
+def calc_k3n_error(  # noqa: D103, PLR0913
+    current_iter: int,
+    total_iter: int,
     normalized_x: pl.DataFrame,
     map_shape_grid: int,
     rbf_centers_grid_shape: int,
     rbfs_grid_variance: float,
     em_algorithm_grid_lambda: float,
+    *,
+    show_progress: bool = False,
 ) -> None:
+    print(f"progress: {current_iter} / {total_iter} ({current_iter / total_iter:.2%})")
+    print(
+        f"map_grid:{map_shape_grid}\n"
+        f"rbf_centers_grid_shape:{rbf_centers_grid_shape}\n"
+        f"rbfs_grid_variance:{rbfs_grid_variance}\n"
+        f"em_algorithm_grid_lambda:{em_algorithm_grid_lambda}\n"
+    )
     # construct GTM model
     model = GTM(
         [map_shape_grid, map_shape_grid],
@@ -40,21 +53,29 @@ def calc_k3n_error(  # noqa: D103
     )
 
 
-def plot_data(  # noqa: D103
-    x: pl.Series, y: pl.Series, c: pl.Series, x_label: str, y_label: str
+def set_plot(  # noqa: D103, PLR0913
+    x: pl.Series,
+    y: pl.Series,
+    x_label: str,
+    y_label: str,
+    ax: plt.Axes,
+    *,
+    c: pl.Series = None,
+    color_bar: Bool = False,
 ) -> None:
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    plt.scatter(x.to_series(0), y.to_series(1), c=c)
-    plt.ylim(-1.1, 1.1)
-    plt.xlim(-1.1, 1.1)
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
+    sc = ax.scatter(x, y, c=c)
+    ax.set_ylim(-1.1, 1.1)
+    ax.set_xlim(-1.1, 1.1)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
     ax.set_aspect("equal")
-    plt.show()
+    if color_bar:
+        plt.colorbar(sc, ax=ax)
 
+
+# %%
 # load dataset
-dataset = pl.read_csv("dataset/selected_descriptors_with_boiling_point.csv").drop("")
+dataset = pl.read_csv("../dataset/selected_descriptors_with_boiling_point.csv").drop("")
 y = dataset.to_series(0)  # 目的変数
 x = dataset.drop(y.name)  # 説明変数
 normalized_x = x.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
@@ -64,47 +85,54 @@ rbf_centers_shape_candidates = pl.int_range(2, 22, 2, eager=True)  # q の候補
 # sigma^2 の候補
 rbf_variance_candidates = 2 ** pl.int_range(-5, 4, 2, eager=True).cast(pl.Float64)
 # 正則化項 lambda の候補
-lambda_candidates_in_em_algorithm = pl.Series([0]).append(
+lambda_candidates_in_em_algorithm = pl.Series([0.0]).append(
     2 ** pl.int_range(-4, 0, eager=True).cast(pl.Float64)
 )
 # grid search
-all_calculation_numbers = (
+calc_iter_length = (
     map_shape_candidates.len()
     * rbf_centers_shape_candidates.len()
     * rbf_variance_candidates.len()
     * lambda_candidates_in_em_algorithm.len()
 )
-show_progress = True  # EM アルゴリズムにおける進捗を表示する (True) かしない (False) か
+# show_progress = True  # EM アルゴリズムにおける進捗を表示する (True) かしない (False) か  # noqa: ERA001
 number_of_iterations = 300  # EM アルゴリズムにおける繰り返し回数
 k_in_k3n_error = 10  # k3n-error における k
-params_and_k3n_error = pl.DataFrame(
+params_and_k3n_error_list = [
     [
-        [
+        map_shape_grid,
+        rbf_centers_grid_shape,
+        rbfs_grid_variance,
+        em_algorithm_grid_lambda,
+        calc_k3n_error(
+            i,
+            calc_iter_length,
+            normalized_x,
             map_shape_grid,
             rbf_centers_grid_shape,
             rbfs_grid_variance,
             em_algorithm_grid_lambda,
-            calc_k3n_error(
-                normalized_x,
-                map_shape_grid,
-                rbf_centers_grid_shape,
-                rbfs_grid_variance,
-                em_algorithm_grid_lambda,
-            ),
-        ]
-        for (
-            map_shape_grid,
-            rbf_centers_grid_shape,
-            rbfs_grid_variance,
-            em_algorithm_grid_lambda,
-        ) in itertools.product(
+        ),
+    ]
+    for i, (
+        map_shape_grid,
+        rbf_centers_grid_shape,
+        rbfs_grid_variance,
+        em_algorithm_grid_lambda,
+    ) in enumerate(
+        itertools.product(
             map_shape_candidates,
             rbf_centers_shape_candidates,
             rbf_variance_candidates,
             lambda_candidates_in_em_algorithm,
-        )
-    ],
-    orient="col",
+        ),
+        start=1,
+    )
+]
+# %%
+params_and_k3n_error = pl.DataFrame(
+    params_and_k3n_error_list,
+    orient="row",
     schema={
         "map_shape_grid": pl.Int64,
         "rbf_centers_grid_shape": pl.Int64,
@@ -116,7 +144,7 @@ params_and_k3n_error = pl.DataFrame(
 
 # optimized GTM
 optimized_hyperparameters = params_and_k3n_error.filter(
-    pl.col("k3n_error") == pl.col["k3n_error"].min()
+    pl.col("k3n_error") == pl.col("k3n_error").min()
 ).row(0)
 shape_of_map = [optimized_hyperparameters[0], optimized_hyperparameters[0]]
 shape_of_rbf_centers = [optimized_hyperparameters[1], optimized_hyperparameters[1]]
@@ -128,6 +156,7 @@ print(f"RBF の数 (q x q): {shape_of_rbf_centers}")
 print(f"RBF の分散 (sigma^2): {variance_of_rbfs}")
 print(f"正則化項 (lambda): {lambda_in_em_algorithm}")
 
+# %%
 # construct GTM model with optimized hyperparameters
 model = GTM(
     shape_of_map,
@@ -135,7 +164,7 @@ model = GTM(
     variance_of_rbfs,
     lambda_in_em_algorithm,
     number_of_iterations,
-    show_progress,
+    display_flag=False,
 )
 model.fit(normalized_x)
 
@@ -143,7 +172,7 @@ model.fit(normalized_x)
 if model.success_flag is False:
     print("GTM モデルの学習に失敗しました")
     sys.exit(1)
-
+# %%
 # calculate responsibilities
 responsibilities = model.responsibility(normalized_x)
 means, modes = model.means_modes(normalized_x)
@@ -151,67 +180,60 @@ means, modes = model.means_modes(normalized_x)
 means_df = pl.DataFrame(means, schema={"t1_mean": pl.Float64, "t2_mean": pl.Float64})
 modes_df = pl.DataFrame(modes, schema={"t1_mode": pl.Float64, "t2_mode": pl.Float64})
 means_df.write_csv(
-    f"dataset/gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}_0.csv"
+    f"../result/gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}_0.csv"
 )
 modes_df.write_csv(
-    f"dataset/gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+    f"../result/gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}_0.csv"
 )
-y_categorical = y.cast(pl.Utf8).cast(pl.Categorical).cast(pl.Int64)
-
+y_categorical = y.cast(pl.Utf8).cast(pl.Categorical).to_physical()
+# %%
 # plot the mean of responsibilities
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.scatter(means_df.to_series(0), means_df.to_series(1))
-plt.ylim(-1.1, 1.1)
-plt.xlim(-1.1, 1.1)
-plt.xlabel("t1 (mean)")
-plt.ylabel("t2 (mean)")
-ax.set_aspect("equal")
-plt.show()
+fig, ax = plt.subplots(2, 2)
+ax1 = ax[0, 0]
+set_plot(
+    means_df.to_series(0),
+    means_df.to_series(1),
+    x_label="t1 (mean)",
+    y_label="t2 (mean)",
+    ax=ax1,
+)
+# plot the mode of responsibilities
+ax2 = ax[1, 0]
+set_plot(
+    modes_df.to_series(0),
+    modes_df.to_series(1),
+    x_label="t1 (mode)",
+    y_label="t2 (mode)",
+    ax=ax2,
+)
 
-# plot the mean of responsibilities
 try:
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if y.dtype == "O":
-        plt.scatter(means_df.to_series(0), means_df.to_series(1), c=y)
-    else:
-        plt.scatter(means[:, 0], means[:, 1], c=y)
-    plt.ylim(-1.1, 1.1)
-    plt.xlim(-1.1, 1.1)
-    plt.xlabel("t1 (mean)")
-    plt.ylabel("t2 (mean)")
-    plt.colorbar()
-    ax.set_aspect("equal")
-    plt.show()
+    # plot the mean of responsibilities
+    ax3 = ax[0, 1]
+    set_plot(
+        means_df.to_series(0),
+        means_df.to_series(1),
+        c=y_categorical,
+        x_label="t1 (mean)",
+        y_label="t2 (mean)",
+        ax=ax3,
+        color_bar=True,
+    )
+
+    # plot the mode of responsibilities
+    ax4 = ax[1, 1]
+    set_plot(
+        modes_df.to_series(0),
+        modes_df.to_series(1),
+        c=y_categorical,
+        x_label="t1 (mode)",
+        y_label="t2 (mode)",
+        ax=ax4,
+        color_bar=True,
+    )
 except NameError:
     print("y がありません")
 
-# plot the mode of responsibilities
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.scatter(modes[:, 0], modes[:, 1])
-plt.ylim(-1.1, 1.1)
-plt.xlim(-1.1, 1.1)
-plt.xlabel("t1 (mode)")
-plt.ylabel("t2 (mode)")
-ax.set_aspect("equal")
 plt.show()
 
-# plot the mode of responsibilities
-try:
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    if y.dtype == "O":
-        plt.scatter(modes[:, 0], modes[:, 1], c=pl.factorize(y)[0])
-    else:
-        plt.scatter(modes[:, 0], modes[:, 1], c=y)
-    plt.ylim(-1.1, 1.1)
-    plt.xlim(-1.1, 1.1)
-    plt.xlabel("t1 (mode)")
-    plt.ylabel("t2 (mode)")
-    plt.colorbar()
-    ax.set_aspect("equal")
-    plt.show()
-except NameError:
-    print("y がありません")
+# %%

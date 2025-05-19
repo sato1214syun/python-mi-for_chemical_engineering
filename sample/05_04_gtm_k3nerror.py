@@ -116,10 +116,10 @@ if model.success_flag:
     means_pd = pd.DataFrame(means, index=x.index, columns=["t1 (mean)", "t2 (mean)"])
     modes_pd = pd.DataFrame(modes, index=x.index, columns=["t1 (mode)", "t2 (mode)"])
     means_pd.to_csv(
-        f"gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+        f"result/gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
     )
     modes_pd.to_csv(
-        f"gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+        f"result/gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
     )
 
     plt.rcParams["font.size"] = 18
