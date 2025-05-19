@@ -75,7 +75,8 @@ def set_plot(  # noqa: D103, PLR0913
 
 # %%
 # load dataset
-dataset = pl.read_csv("../dataset/selected_descriptors_with_boiling_point.csv").drop("")
+dataset = pl.read_csv("dataset/selected_descriptors_with_boiling_point.csv")
+index = dataset.to_series(0)
 y = dataset.to_series(0)  # 目的変数
 x = dataset.drop(y.name)  # 説明変数
 normalized_x = x.with_columns((pl.all() - pl.all().mean()) / pl.all().std())
@@ -95,7 +96,7 @@ calc_iter_length = (
     * rbf_variance_candidates.len()
     * lambda_candidates_in_em_algorithm.len()
 )
-# show_progress = True  # EM アルゴリズムにおける進捗を表示する (True) かしない (False) か  # noqa: ERA001
+# show_progress = True  # noqa: ERA001
 number_of_iterations = 300  # EM アルゴリズムにおける繰り返し回数
 k_in_k3n_error = 10  # k3n-error における k
 params_and_k3n_error_list = [
@@ -179,14 +180,17 @@ means, modes = model.means_modes(normalized_x)
 
 means_df = pl.DataFrame(means, schema={"t1_mean": pl.Float64, "t2_mean": pl.Float64})
 modes_df = pl.DataFrame(modes, schema={"t1_mode": pl.Float64, "t2_mode": pl.Float64})
-means_df.write_csv(
-    f"../result/gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}_0.csv"
+means_df.insert_column(0, index).write_csv(
+    f"result/gtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
 )
-modes_df.write_csv(
-    f"../result/gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}_0.csv"
+modes_df.insert_column(0, index).write_csv(
+    f"result/gtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
 )
 y_categorical = y.cast(pl.Utf8).cast(pl.Categorical).to_physical()
-# %%
+
+means_df=means_df.drop("")
+modes_df=modes_df.drop("")
+
 # plot the mean of responsibilities
 fig, ax = plt.subplots(2, 2)
 ax1 = ax[0, 0]
@@ -235,5 +239,3 @@ except NameError:
     print("y がありません")
 
 plt.show()
-
-# %%
