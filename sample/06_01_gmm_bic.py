@@ -67,7 +67,7 @@ cluster_numbers = pd.DataFrame(
     cluster_numbers, index=x.index, columns=["cluster numbers"]
 )
 cluster_numbers.to_csv(
-    f"cluster_numbers_gmm_{optimal_number_of_gaussian}_{optimal_covariance_type}.csv"
+    f"result/cluster_numbers_gmm_{optimal_number_of_gaussian}_{optimal_covariance_type}.csv"
 )
 cluster_probabilities = model.predict_proba(autoscaled_x)
 cluster_probabilities = pd.DataFrame(cluster_probabilities, index=x.index)
