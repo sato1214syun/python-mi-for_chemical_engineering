@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "argmin",
         "Boruta",
         "cmap",
         "colorbar",
@@ -36,6 +37,7 @@
         "scikit",
         "scipy",
         "seaborn",
+        "sgtm",
         "tournsize",
         "tsne",
         "unpivot",
