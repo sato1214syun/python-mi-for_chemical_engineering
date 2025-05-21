@@ -1,6 +1,5 @@
 """05_04 generative topographic mapping (GTM)."""
 
-# %%
 import itertools
 import sys
 
@@ -8,7 +7,6 @@ import matplotlib.pyplot as plt
 import polars as pl
 from dcekit.generative_model import GTM  # type: ignore[import-untyped]
 from dcekit.validation import k3nerror
-from traitlets import Bool  # type: ignore[import-untyped]
 
 
 def calc_k3n_error(  # noqa: D103, PLR0913
@@ -19,6 +17,7 @@ def calc_k3n_error(  # noqa: D103, PLR0913
     rbf_centers_grid_shape: int,
     rbfs_grid_variance: float,
     em_algorithm_grid_lambda: float,
+    k_in_k3n_error: int,
     *,
     show_progress: bool = False,
 ) -> None:
@@ -61,7 +60,7 @@ def set_plot(  # noqa: D103, PLR0913
     ax: plt.Axes,
     *,
     c: pl.Series = None,
-    color_bar: Bool = False,
+    color_bar: bool = False,
 ) -> None:
     sc = ax.scatter(x, y, c=c)
     ax.set_ylim(-1.1, 1.1)
@@ -73,7 +72,6 @@ def set_plot(  # noqa: D103, PLR0913
         plt.colorbar(sc, ax=ax)
 
 
-# %%
 # load dataset
 dataset = pl.read_csv("dataset/selected_descriptors_with_boiling_point.csv")
 index = dataset.to_series(0)
@@ -113,6 +111,7 @@ params_and_k3n_error_list = [
             rbf_centers_grid_shape,
             rbfs_grid_variance,
             em_algorithm_grid_lambda,
+            k_in_k3n_error,
         ),
     ]
     for i, (
@@ -130,7 +129,7 @@ params_and_k3n_error_list = [
         start=1,
     )
 ]
-# %%
+
 params_and_k3n_error = pl.DataFrame(
     params_and_k3n_error_list,
     orient="row",
@@ -157,7 +156,7 @@ print(f"RBF の数 (q x q): {shape_of_rbf_centers}")
 print(f"RBF の分散 (sigma^2): {variance_of_rbfs}")
 print(f"正則化項 (lambda): {lambda_in_em_algorithm}")
 
-# %%
+
 # construct GTM model with optimized hyperparameters
 model = GTM(
     shape_of_map,
@@ -173,7 +172,7 @@ model.fit(normalized_x)
 if model.success_flag is False:
     print("GTM モデルの学習に失敗しました")
     sys.exit(1)
-# %%
+
 # calculate responsibilities
 responsibilities = model.responsibility(normalized_x)
 means, modes = model.means_modes(normalized_x)
@@ -188,8 +187,8 @@ modes_df.insert_column(0, index).write_csv(
 )
 y_categorical = y.cast(pl.Utf8).cast(pl.Categorical).to_physical()
 
-means_df=means_df.drop("")
-modes_df=modes_df.drop("")
+means_df = means_df.drop("")
+modes_df = modes_df.drop("")
 
 # plot the mean of responsibilities
 fig, ax = plt.subplots(2, 2)

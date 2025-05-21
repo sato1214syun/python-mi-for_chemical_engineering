@@ -92,10 +92,10 @@ shape_of_rbf_centers = [
 variance_of_rbfs = parameters_and_k3nerror[optimized_hyperparameter_number, 2]
 lambda_in_em_algorithm = parameters_and_k3nerror[optimized_hyperparameter_number, 3]
 print("k3n-error で最適化されたハイパーパラメータ")
-print(f"２次元平面上のグリッド点の数 (k × k): {shape_of_map[0]} × {shape_of_map[1]}")
-print(f"RBF の数 (q × q): {shape_of_rbf_centers[0]} × {shape_of_rbf_centers[1]}")
-print(f"RBF の分散 (σ^2): {variance_of_rbfs}")
-print(f"正則化項 (λ): {lambda_in_em_algorithm}")
+print(f"２次元平面上のグリッド点の数 (k x k): {shape_of_map[0]} x {shape_of_map[1]}")
+print(f"RBF の数 (q x q): {shape_of_rbf_centers[0]} x {shape_of_rbf_centers[1]}")
+print(f"RBF の分散 (sigma^2): {variance_of_rbfs}")
+print(f"正則化項 (lambda): {lambda_in_em_algorithm}")
 
 # construct GTM model
 model = GTM(

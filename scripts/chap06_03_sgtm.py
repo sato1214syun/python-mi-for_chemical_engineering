@@ -149,11 +149,7 @@ print(
     f"{clustering_results.item(number, 'number_of_clusters')}"
 )
 
-clusters = (
-    cluster_numbers.to_series(clustering_results.get_column("BIC").arg_min())
-    .cast(pl.Int64)
-    .rename("cluster numbers")
-)
+clusters = cluster_numbers.to_series(number).cast(pl.Int64).rename("cluster numbers")
 clusters.to_frame().insert_column(0, index).write_csv(
     f"result/cluster_numbers_sgtm_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv",
     quote_style="never",

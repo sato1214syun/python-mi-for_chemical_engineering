@@ -9,7 +9,7 @@ from dcekit.validation import k3nerror  # type: ignore[import-untyped]
 # 設定 ここから
 candidates_of_shape_of_map = np.arange(30, 31, dtype=int)  # k の候補
 candidates_of_shape_of_rbf_centers = np.arange(2, 22, 2, dtype=int)  # q の候補
-candidates_of_variance_of_rbfs = 2 ** np.arange(-5, 4, 2, dtype=float)  # σ^2 の候補
+candidates_of_variance_of_rbfs = 2 ** np.arange(-5, 4, 2, dtype=float)  # sigma^2 の候補
 candidates_of_lambda_in_em_algorithm = 2 ** np.arange(
     -4, 0, dtype=float
 )  # 正則化項 (λ) の候補
@@ -17,13 +17,13 @@ candidates_of_lambda_in_em_algorithm = np.append(
     0, candidates_of_lambda_in_em_algorithm
 )  # 正則化項 (λ) の候補
 number_of_iterations = 300  # EM アルゴリズムにおける繰り返し回数
-display_flag = False  # EM アルゴリズムにおける進捗を表示する (True) かしない (Flase) か
+display_flag = False  # EM アルゴリズムにおける進捗を表示する (True) かしない (False) か
 k_in_k3nerror = 10  # k3n-error における k
 # 設定 ここまで
 
 # load dataset
 dataset = pd.read_csv(
-    "selected_descriptors_with_boiling_point.csv", index_col=0
+    "dataset/selected_descriptors_with_boiling_point.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
@@ -93,9 +93,9 @@ shape_of_rbf_centers = [
 variance_of_rbfs = parameters_and_k3nerror[optimized_hyperparameter_number, 2]
 lambda_in_em_algorithm = parameters_and_k3nerror[optimized_hyperparameter_number, 3]
 print("k3n-error で最適化されたハイパーパラメータ")
-print(f"２次元平面上のグリッド点の数 (k × k): {shape_of_map[0]} × {shape_of_map[1]}")
-print(f"RBF の数 (q × q): {shape_of_rbf_centers[0]} × {shape_of_rbf_centers[1]}")
-print(f"RBF の分散 (σ^2): {variance_of_rbfs}")
+print(f"２次元平面上のグリッド点の数 (k x k): {shape_of_map[0]} x {shape_of_map[1]}")
+print(f"RBF の数 (q x q): {shape_of_rbf_centers[0]} x {shape_of_rbf_centers[1]}")
+print(f"RBF の分散 (sigma^2): {variance_of_rbfs}")
 print(f"正則化項 (λ): {lambda_in_em_algorithm}")
 
 # construct SGTM model
@@ -118,10 +118,10 @@ if model.success_flag:
     means_pd = pd.DataFrame(means, index=x.index, columns=["t1 (mean)", "t2 (mean)"])
     modes_pd = pd.DataFrame(modes, index=x.index, columns=["t1 (mode)", "t2 (mode)"])
     means_pd.to_csv(
-        f"sgtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+        f"result/sgtm_means_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
     )
     modes_pd.to_csv(
-        f"sgtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+        f"result/sgtm_modes_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
     )
 
     plt.rcParams["font.size"] = 18
