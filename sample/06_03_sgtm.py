@@ -18,7 +18,7 @@ display_flag = True  # EM アルゴリズムにおける進捗を表示する (T
 
 # load dataset
 dataset = pd.read_csv(
-    "selected_descriptors_with_boiling_point.csv", index_col=0
+    "dataset/selected_descriptors_with_boiling_point.csv", index_col=0
 )  # データセットの読み込み
 
 y = dataset.iloc[:, 0]  # 目的変数
@@ -132,6 +132,11 @@ if model.success_flag:
         non0_mixing_coefficient = model.mixing_coefficients[non0_indexes]
         model.mixing_coefficients[non0_indexes[non0_mixing_coefficient.argmin()]] = 0
         non0_indexes = np.delete(non0_indexes, non0_mixing_coefficient.argmin())
+        test = model.mixing_coefficients[non0_indexes] + min(
+            non0_mixing_coefficient
+        ) / len(non0_indexes)
+        min_coef = min(non0_mixing_coefficient)
+        length = len(non0_indexes)
         model.mixing_coefficients[non0_indexes] = model.mixing_coefficients[
             non0_indexes
         ] + min(non0_mixing_coefficient) / len(non0_indexes)
@@ -153,7 +158,7 @@ if model.success_flag:
     clusters = cluster_numbers[:, number].astype("int64")
     clusters = pd.DataFrame(clusters, index=x.index, columns=["cluster numbers"])
     clusters.to_csv(
-        f"cluster_numbers_sgtm_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
+        f"result/cluster_numbers_sgtm_{shape_of_map[0]}_{shape_of_map[1]}_{shape_of_rbf_centers[0]}_{shape_of_rbf_centers[1]}_{variance_of_rbfs}_{lambda_in_em_algorithm}_{number_of_iterations}.csv"
     )
 
     # plot the mean of responsibilities with cluster information
