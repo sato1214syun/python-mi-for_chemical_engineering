@@ -1,7 +1,6 @@
 """06_03 sparse-GTM k3e-error."""
 
 import itertools
-import os
 import sys
 
 import matplotlib.pyplot as plt
@@ -9,8 +8,6 @@ import numpy as np
 import polars as pl
 from dcekit.generative_model import GTM  # type: ignore[import-untyped]
 from dcekit.validation import k3nerror
-
-os.chdir("..")
 
 
 def calc_k3n_error(  # noqa: D103, PLR0913
